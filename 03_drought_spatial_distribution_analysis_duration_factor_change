@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Oct  4 11:10:22 2022
+
+@author: tuongvq
+"""
+
+import os
+from all_functions_ens import *
+
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.cm import ScalarMappable
+# import libpysal
+
+cmap1 = LinearSegmentedColormap.from_list('', ['#0000ff', '#6600ff', '#cc00ff', '#ff00cc','#ff0066','#ff0000'])
+
+# =============================================================================
+# Read data from matlab
+# =============================================================================
+os.chdir("/data/tuongvq/CMIP6_AWE-GEN")
+sce_name_all=["MID245","MID585","END245","END585"]
+begin_date_all=["2041","2041","2071","2071",]
+df_names=pd.read_excel("GCM_Korea_Locations.xlsx",header=None)
+all_sta_name=df_names.iloc[:,1]
+
+""" create folder to store figures"""
+outs=['02_out_figures']
+for out in outs:
+    if not os.path.exists(out):
+        os.makedirs(out)
+
+# =============================================================================
+# Read shapefile
+# =============================================================================
+# gdf=gpd.read_file("BD/KOR_adm2.shp")
+gdf=gpd.read_file("BD/KOR_adm2_rm_jeju.shp")
+# gdf.plot()
+# plt.plot(df_names.iloc[:,4],df_names.iloc[:,3],'*',color='red')
+df_names_spi=df_names.copy()
+df_names_spi['spi']=''
+# =============================================================================
+# Load drought prm
+# =============================================================================
+with open('01_out/'+'prm_v2.pkl','rb')as f_load0:
+    prm_all=pickle.load(f_load0)
+
+# =============================================================================
+# Load drought spi
+# =============================================================================
+with open('01_out/'+'prm_spi_check_v2.pkl','rb')as f_load1:
+    spi_all=pickle.load(f_load1)
+
+# =============================================================================
+# Load drought characteristic stat
+# =============================================================================
+with open('01_out/'+'prm_spi_char_check_v2.pkl','rb')as f_load2:
+    spi_char=pickle.load(f_load2)
+
+# =============================================================================
+# Load drought characteristic stat
+# =============================================================================
+with open('01_out/'+'prm_spi_char_stat_check_v2.pkl','rb')as f_load3:
+    spi_char_stat=pickle.load(f_load3)
+    
+# =============================================================================
+# Plot check data
+times = [3, 6, 9, 12]
+all_chars=['prm','duration','severity','','interval']
+sce=0
+# for sce in range(4):
+st=0
+ens=0
+sc=1
+i=1 # 0 :prm, 1:spi3, 2:spi6,3:spi9,4:spi12
+fig, axes = plt.subplots(nrows=4, figsize=(8,6))
+plt.subplots_adjust(hspace=0.15)
+data=spi_all[sce][st][ens].iloc[:,1:]
+for i, ax in enumerate(axes):
+    col_scheme=np.where(data['spi_'+str(times[i])]>0, 'b','r')
+
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+    ax.bar(data.index, data['spi_'+str(times[i])], width=25, align='center', color=col_scheme, label='SPI '+str(times[i]))
+    ax.axhline(y=0, color='k')
+    ax.xaxis.set_major_locator(mdates.YearLocator(2))
+    ax.legend(loc='upper right')
+    ax.set_yticks(range(-3,4), range(-3,4))
+    ax.set_ylabel('SPI', fontsize=12)
+    
+    if i<len(times)-1:
+        ax.set_xticks([],[])
+plt.gcf()
+plt.suptitle("Various temporal scale SPI "+sce_name_all[sce]+" at "+all_sta_name[st]+" station with ensemble "+ str(ens+1),fontsize=13)
+plt.subplots_adjust(top=0.95)
+# =============================================================================
+
+# =============================================================================
+# Compute range of 100 ensemble of 40 sations of duration
+# sce=0
+spi_char_values=np.zeros([40,100])
+for st in range(40):
+    for ens in range(100):
+        spi_char_values[st,ens]=spi_char_stat[sce][st][ens].iloc[8,3]# computed range of duration #THAY DOI CHO NAY
+        # 2:DD, 3:SS,4:INTENSITY, 5: INTERVAL
+        
+spi_char_values_stat=describe_new(pd.DataFrame(spi_char_values).T)
+#******************************************************************************
+gdf=gpd.read_file("BD/KOR_adm2_rm_jeju.shp")
+gdf.plot()
+plt.plot(df_names.iloc[:,4],df_names.iloc[:,3],'*',color='red')
+df_names_spi=df_names.copy()
+df_names_spi['spi']=''
+
+        
+# # =============================================================================
+
+#***************************************************************
+
+""" Plot 100 ensble spi3 tai tram thu nhat"""
+# ens=0
+sce=0
+range_dd_ens_st_all=[]
+for st in range(40):
+    range_dd_all=[]
+    # fig,ax=plt.subplots(figsize=(8,6))
+    # plt.subplot(1,1,1)
+    for ens in range(100):
+        spi_val=spi_all[sce][st][ens]['spi_3']
+        # spi_val.plot(legend=False)
+        dc=run_theory2(df0=spi_val, threshold0=-1)
+        dcs=describe_new(dc)
+        range_dd=dcs['dd'][-1] # THAY GIA TRI dd bang ss
+        range_dd_all.append(range_dd)
+    range_dd_ens=np.max(range_dd_all)-np.min(range_dd_all)
+    
+    range_dd_ens_st_all.append(range_dd_ens)
+    
+""" Plot 100 ensble spi3 tai tram thu nhat"""
+sce=2
+range_dd_ens_st_all3=[]
+for st in range(40):
+    range_dd_all3=[]
+    # fig,ax=plt.subplots(figsize=(8,6))
+    # plt.subplot(1,1,1)
+    for ens in range(100):
+        spi_val=spi_all[sce][st][ens]['spi_3']
+        # spi_val.plot(legend=False)
+        dc=run_theory2(df0=spi_val, threshold0=-1)
+        dcs=describe_new(dc)
+        range_dd=dcs['dd'][-1] # THAY GIA TRI dd bang ss
+        range_dd_all3.append(range_dd)
+    range_dd_ens3=np.max(range_dd_all3)-np.min(range_dd_all3)
+    
+    range_dd_ens_st_all3.append(range_dd_ens3)
+
+arr1=np.array(range_dd_ens_st_all)
+
+arr2=np.array(range_dd_ens_st_all3)
+    
+arr3=(arr2/arr1)*100
+
+
+""" Ve hinh range dd"""
+
+# tinh ty le giua 2 kich ban, dai han chia cho trung han
+
+
+
+# fig,ax=plt.subplots(figsize=(4,8))
+# =============================================================================
+#  Tinh va gan gia tri dd
+
+gdf2=gpd.read_file("BD/40ASOS_onlyname.shp")
+# gdf2.plot()
+
+''' Tinh toa do trong tam cua cac polygon, tinh khoang cach den cac diem, lay gia tri tu diem co khoang cach gan nhat'''
+
+gdfxy=gdf.copy()
+gdfxy['x']=''
+gdfxy['y']=''
+for i in range(gdfxy.shape[0]):
+    center=gdf['geometry'][i].centroid
+    x=center.x
+    y=center.y
+    gdfxy['x'][i]=x
+    gdfxy['y'][i]=y
+gdfxy['spi']=''
+ad0=[] # tap hop so thu tu cua cac tram gan voi trung tam hanh chinh nhat
+# ad=0 # administration 1
+# st=0
+for ad in range(gdfxy.shape[0]):
+    d0=[]# khoang cach ly tuong la 0
+    for st in range(40):
+        d=np.sqrt((gdfxy['x'][ad]-df_names_spi.iloc[st,4])**2+(gdfxy['y'][ad]-df_names_spi.iloc[st,3])**2)
+        d0.append(d)
+    minidx=np.argmin(np.array(d0))
+    ad0.append(minidx)
+
+for ad in range(gdfxy.shape[0]):
+    # gdfxy['spi'][ad]=range_dd_ens_st_all[ad0[ad]] # thay doi o day
+    gdfxy['spi'][ad]=arr3[ad0[ad]]
+
+# =============================================================================
+
+
+c=gdfxy
+
+# c['spi']=c['spi']
+# vmin, vmax = c['spi'].min(),c['spi'].max()
+vmin, vmax = 50,500
+fig, ax = plt.subplots(1, figsize=(6, 8))
+c.plot(column='spi', cmap='RdYlGn_r', ax = ax, linewidth=0.8, edgecolor='0.8')
+ax.axis('off')
+# ax.set_title('Population density (per hectare) 2017', fontdict={'fontsize': '25', 'fontweight' : '3'})
+# ax.annotate('Source: London Datastore, 2014',xy=(0.1, .08),  xycoords='figure fraction', horizontalalignment='left', verticalalignment='top', fontsize=12, color='#555555')
+sm = plt.cm.ScalarMappable(cmap='RdYlGn_r', norm=plt.Normalize(vmin=vmin, vmax=vmax))
+sm._A = []
+cbar = fig.colorbar(sm)
+cx.add_basemap(ax, crs=c.crs)
+from shapely.geometry.point import Point
+
+points = gpd.GeoSeries([Point(-73.5, 40.5), Point(-74.5, 40.5)], crs=4326)  # Geographic WGS 84 - degrees
+points = points.to_crs(32619) # Projected WGS 84 - meters
+distance_meters = points[0].distance(points[1])
+ax.add_artist(ScaleBar(distance_meters,location='lower right'))
+# ve wind direction
+x, y, arrow_length = 0.9, 0.9, 0.1
+ax.annotate('N', xy=(x, y), xytext=(x, y-arrow_length),
+            arrowprops=dict(facecolor='black', width=5, headwidth=15),
+            ha='center', va='center', fontsize=20,
+            xycoords=ax.transAxes)
+
+plt.savefig(outs[0]+'/'+sce_name_all[sce]+'spi'+str(times[sc])+all_chars[sc+1]+'245dur.jpg',dpi=300)
+# c.plot(column='spi')
